@@ -7,8 +7,9 @@ library(readr)
 
 # Function to screen stock and calculate indicators
 screen_stock <- function(ticker, period = "all") {
+  tryCatch({
+    
   stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
-  
   if (period != "all") {
     end_date <- Sys.Date()
     start_date <- switch(
@@ -17,6 +18,13 @@ screen_stock <- function(ticker, period = "all") {
       "1y" = end_date - years(1),
       end_date - years(5)
     )
+    
+    # Check if data is available for more than 1 year
+    if (index(stock_data)[1] > start_date) {
+      print(paste("Insufficient data for ticker", ticker))
+      return(NULL)
+    }
+    
     stock_data <- stock_data[paste(start_date, end_date, sep = "::")]
   }
   
@@ -43,7 +51,13 @@ screen_stock <- function(ticker, period = "all") {
     EMA200 = as.numeric(ema200)
   )
   return(indicators)
+  
+  }, error = function(e) {
+    print(paste("Error for ticker", ticker, ":", conditionMessage(e)))
+    return(NULL)
+  })
 }
+
 
 check_buy_signals <- function(tickers, period = "all", output_file = "buy_signals.csv") {
   results <- data.frame(
@@ -59,6 +73,10 @@ check_buy_signals <- function(tickers, period = "all", output_file = "buy_signal
   
   for (ticker in tickers) {
     indicators <- screen_stock(ticker, period)
+    if (is.null(indicators)) {
+      print(paste("Skipping ticker", ticker))
+      next  # Skip to next iteration if data is insufficient)
+    }
     latest_data <- tail(indicators, 1)
     
     macd_buy <- latest_data$MACD > latest_data$Signal
