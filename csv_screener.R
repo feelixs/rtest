@@ -125,7 +125,8 @@ load_tickers <- function(file_path) {
 current_date <- format(Sys.Date(), "%Y-%m-%d")
 output_file <- paste0("buy_signals_", current_date, ".csv")
 
-
 tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
+#tickers <- c("AAPL", "GOOGL", "MSFT")
+
 buy_signals <- check_buy_signals(tickers, period = "1y", output_file = output_file)
 print(buy_signals)
