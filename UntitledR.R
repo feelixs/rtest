@@ -55,10 +55,6 @@ screen_stock <- function(ticker, period = "all") {
     EMA50 = as.numeric(ema50),
     EMA200 = as.numeric(ema200)
   )
-  
-  # Remove rows with NA values
-  indicators <- na.omit(indicators)
-  
   return(indicators)
 }
 
@@ -101,5 +97,5 @@ chart_stock <- function(indicators) {
 }
 
 # Example usage:
-indicators <- screen_stock("AAPL", period = "all")
+indicators <- screen_stock("AAPL", period = "1y")
 chart_stock(indicators)
