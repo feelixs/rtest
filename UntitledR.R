@@ -4,44 +4,30 @@ library(ggplot2)
 library(gridExtra)
 library(lubridate)
 
+# Function to screen stock and calculate indicators
 screen_stock <- function(ticker, period = "all") {
-  # Get stock data
   stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
   
-  # Subset data based on the period
   if (period != "all") {
     end_date <- Sys.Date()
     start_date <- switch(
       period,
       "10m" = end_date - months(10),
       "1y" = end_date - years(1),
-      end_date - years(5) # default to 5 years if period not recognized
+      end_date - years(5)
     )
-    print(paste("Start Date:", start_date))
-    print(paste("End Date:", end_date))
     stock_data <- stock_data[paste(start_date, end_date, sep = "::")]
   }
   
-  # Print the date range of the subset data for debugging
-  print(paste("Data Range:", index(stock_data)[1], "to", index(stock_data)[nrow(stock_data)]))
-  
-  # Calculate RSI
   rsi <- RSI(Cl(stock_data), n = 14)
-  
-  # Calculate MACD
   macd <- MACD(Cl(stock_data), nFast = 12, nSlow = 26, nSig = 9)
-  
-  # Calculate SMA
   sma20 <- SMA(Cl(stock_data), n = 20)
   sma50 <- SMA(Cl(stock_data), n = 50)
   sma200 <- SMA(Cl(stock_data), n = 200)
-  
-  # Calculate EMA
   ema20 <- EMA(Cl(stock_data), n = 20)
   ema50 <- EMA(Cl(stock_data), n = 50)
   ema200 <- EMA(Cl(stock_data), n = 200)
   
-  # Combine indicators into a data frame
   indicators <- data.frame(
     Date = index(stock_data),
     Close = as.numeric(Cl(stock_data)),
@@ -58,65 +44,55 @@ screen_stock <- function(ticker, period = "all") {
   return(indicators)
 }
 
-check_buy_signals <- function(indicators) {
-  latest_data <- tail(indicators, 1)
-  
-  macd_buy <- latest_data$MACD > latest_data$Signal
-  ema20_sma50_buy <- latest_data$EMA20 > latest_data$SMA50
-  ema20_sma20_buy <- latest_data$EMA20 > latest_data$SMA20
-  sma20_sma50_buy <- latest_data$SMA20 > latest_data$SMA50
-  rsi_buy <- latest_data$RSI < 30
-  
-  list(
-    MACD_Buy = macd_buy,
-    EMA20_SMA50_Buy = ema20_sma50_buy,
-    EMA20_SMA20_Buy = ema20_sma20_buy,
-    SMA20_SMA50_Buy = sma20_sma50_buy,
-    RSI_Buy = rsi_buy
+# Function to check buy signals and write to CSV
+check_buy_signals <- function(tickers, period = "all", output_file = "buy_signals.csv") {
+  results <- data.frame(
+    Ticker = character(),
+    Date = as.Date(character()),
+    MACD_Buy = logical(),
+    EMA20_SMA50_Buy = logical(),
+    EMA20_SMA20_Buy = logical(),
+    SMA20_SMA50_Buy = logical(),
+    RSI_Buy = logical(),
+    stringsAsFactors = FALSE
   )
+  
+  for (ticker in tickers) {
+    indicators <- screen_stock(ticker, period)
+    latest_data <- tail(indicators, 1)
+    
+    macd_buy <- latest_data$MACD > latest_data$Signal
+    ema20_sma50_buy <- latest_data$EMA20 > latest_data$SMA50
+    ema20_sma20_buy <- latest_data$EMA20 > latest_data$SMA20
+    sma20_sma50_buy <- latest_data$SMA20 > latest_data$SMA50
+    rsi_buy <- latest_data$RSI < 30
+    
+    signal_data <- data.frame(
+      Ticker = ticker,
+      Date = latest_data$Date,
+      MACD_Buy = macd_buy,
+      EMA20_SMA50_Buy = ema20_sma50_buy,
+      EMA20_SMA20_Buy = ema20_sma20_buy,
+      SMA20_SMA50_Buy = sma20_sma50_buy,
+      RSI_Buy = rsi_buy
+    )
+    
+    results <- rbind(results, signal_data)
+  }
+  
+  if (file.exists(output_file)) {
+    write.table(results, file = output_file, append = TRUE, sep = ",", col.names = FALSE, row.names = FALSE)
+  } else {
+    write.table(results, file = output_file, append = FALSE, sep = ",", col.names = TRUE, row.names = FALSE)
+  }
+  
+  return(results)
 }
 
+current_date <- format(Sys.Date(), "%Y-%m-%d")
+output_file <- paste0("buy_signals_", current_date, ".csv")
 
-chart_stock <- function(indicators, ticker = "Stock") {
-  # Plot closing prices with SMA and EMA
-  p1 <- ggplot(indicators, aes(x = Date)) +
-    geom_line(aes(y = Close, color = "Close")) +
-    geom_line(aes(y = SMA20, color = "SMA20")) +
-    geom_line(aes(y = SMA50, color = "SMA50")) +
-    geom_line(aes(y = SMA200, color = "SMA200")) +
-    geom_line(aes(y = EMA20, color = "EMA20"), linetype = "dashed") +
-    geom_line(aes(y = EMA50, color = "EMA50"), linetype = "dashed") +
-    geom_line(aes(y = EMA200, color = "EMA200"), linetype = "dashed") +
-    labs(title = paste(ticker, " Chart"),
-         y = "Price",
-         color = "Legend") +
-    theme_minimal()
-  
-  # Plot RSI
-  p2 <- ggplot(indicators, aes(x = Date)) +
-    geom_line(aes(y = RSI, color = "RSI")) +
-    labs(title = "Relative Strength Index (RSI)",
-         y = "RSI",
-         color = "Legend") +
-    geom_hline(yintercept = 70, linetype = "dashed", color = "red") +
-    geom_hline(yintercept = 30, linetype = "dashed", color = "blue") +
-    theme_minimal()
-  
-  # Plot MACD
-  p3 <- ggplot(indicators, aes(x = Date)) +
-    geom_line(aes(y = MACD, color = "MACD")) +
-    geom_line(aes(y = Signal, color = "Signal")) +
-    labs(title = "MACD",
-         y = "Value",
-         color = "Legend") +
-    theme_minimal()
-  
-  # Combine plots
-  grid.arrange(p1, p2, p3, ncol = 1)
-}
 
-ticker = "SPY"
-indicators <- screen_stock(ticker, period = "1y")
-chart_stock(indicators, ticker)
-buy_signals <- check_buy_signals(indicators)
+tickers <- c("AAPL", "GOOGL", "MSFT")
+buy_signals <- check_buy_signals(tickers, period = "1y", output_file = output_file)
 print(buy_signals)
