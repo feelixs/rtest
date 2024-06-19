@@ -58,7 +58,26 @@ screen_stock <- function(ticker, period = "all") {
   return(indicators)
 }
 
-chart_stock <- function(indicators) {
+check_buy_signals <- function(indicators) {
+  latest_data <- tail(indicators, 1)
+  
+  macd_buy <- latest_data$MACD > latest_data$Signal
+  ema20_sma50_buy <- latest_data$EMA20 > latest_data$SMA50
+  ema20_sma20_buy <- latest_data$EMA20 > latest_data$SMA20
+  sma20_sma50_buy <- latest_data$SMA20 > latest_data$SMA50
+  rsi_buy <- latest_data$RSI < 30
+  
+  list(
+    MACD_Buy = macd_buy,
+    EMA20_SMA50_Buy = ema20_sma50_buy,
+    EMA20_SMA20_Buy = ema20_sma20_buy,
+    SMA20_SMA50_Buy = sma20_sma50_buy,
+    RSI_Buy = rsi_buy
+  )
+}
+
+
+chart_stock <- function(indicators, ticker = "Stock") {
   # Plot closing prices with SMA and EMA
   p1 <- ggplot(indicators, aes(x = Date)) +
     geom_line(aes(y = Close, color = "Close")) +
@@ -68,7 +87,7 @@ chart_stock <- function(indicators) {
     geom_line(aes(y = EMA20, color = "EMA20"), linetype = "dashed") +
     geom_line(aes(y = EMA50, color = "EMA50"), linetype = "dashed") +
     geom_line(aes(y = EMA200, color = "EMA200"), linetype = "dashed") +
-    labs(title = "Stock Price with SMA and EMA",
+    labs(title = paste(ticker, " Chart"),
          y = "Price",
          color = "Legend") +
     theme_minimal()
@@ -96,6 +115,8 @@ chart_stock <- function(indicators) {
   grid.arrange(p1, p2, p3, ncol = 1)
 }
 
-# Example usage:
-indicators <- screen_stock("AAPL", period = "1y")
-chart_stock(indicators)
+ticker = "SPY"
+indicators <- screen_stock(ticker, period = "1y")
+chart_stock(indicators, ticker)
+buy_signals <- check_buy_signals(indicators)
+print(buy_signals)
