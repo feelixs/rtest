@@ -44,7 +44,6 @@ screen_stock <- function(ticker, period = "all") {
   return(indicators)
 }
 
-# Function to check buy signals and write to CSV
 check_buy_signals <- function(tickers, period = "all", output_file = "buy_signals.csv") {
   results <- data.frame(
     Ticker = character(),
@@ -80,6 +79,16 @@ check_buy_signals <- function(tickers, period = "all", output_file = "buy_signal
     results <- rbind(results, signal_data)
   }
   
+  # Add a column that counts the number of TRUE values for each row
+  results$Total_True <- rowSums(results[,3:7])
+  
+  # Sort the results based on the number of TRUE values (descending)
+  results <- results[order(-results$Total_True), ]
+  
+  # Remove the Total_True column before writing to CSV
+  results <- results[, -ncol(results)]
+  
+  # Write to CSV
   if (file.exists(output_file)) {
     write.table(results, file = output_file, append = TRUE, sep = ",", col.names = FALSE, row.names = FALSE)
   } else {
