@@ -38,6 +38,12 @@ screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
     roc <- ROC(Cl(stock_data), n = 10)
     bb <- BBands(HLC(stock_data))
 
+    # Calculate stop loss (2 ATR below close)
+    stop_loss <- Cl(stock_data) - (2 * atr[,"atr"])
+
+    # Calculate implied volatility (using historical volatility as a proxy)
+    implied_volatility <- volatility(Cl(stock_data), n = 30, calc = "close")
+
     indicators <- data.frame(
       Date = index(stock_data),
       Close = as.numeric(Cl(stock_data)),
@@ -51,11 +57,13 @@ screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
       EMA20 = as.numeric(ema20),
       EMA50 = as.numeric(ema50),
       EMA200 = as.numeric(ema200),
-      ATR = as.numeric(atr[,1]),
+      ATR = as.numeric(atr[,"atr"]),
       ROC = as.numeric(roc),
       BB_Upper = as.numeric(bb[,"up"]),
       BB_Lower = as.numeric(bb[,"dn"]),
-      BB_Middle = as.numeric(bb[,"mavg"])
+      BB_Middle = as.numeric(bb[,"mavg"]),
+      Stop_Loss = as.numeric(stop_loss),
+      Implied_Volatility = as.numeric(implied_volatility)
     )
     return(indicators)
 
@@ -66,7 +74,7 @@ screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
 }
 
 chart_stock <- function(indicators, ticker = "Stock") {
-  # Plot closing prices with SMA, EMA, and Bollinger Bands
+  # Plot closing prices with SMA, EMA, Bollinger Bands, and Stop Loss
   p1 <- ggplot(indicators, aes(x = Date)) +
     geom_line(aes(y = Close, color = "Close")) +
     geom_line(aes(y = SMA20, color = "SMA20")) +
@@ -77,6 +85,7 @@ chart_stock <- function(indicators, ticker = "Stock") {
     geom_line(aes(y = EMA200, color = "EMA200"), linetype = "dashed") +
     geom_ribbon(aes(ymin = BB_Lower, ymax = BB_Upper), fill = "lightblue", alpha = 0.2) +
     geom_line(aes(y = BB_Middle, color = "BB Middle")) +
+    geom_line(aes(y = Stop_Loss, color = "Stop Loss"), linetype = "dotted", size = 1) +
     labs(title = paste(ticker, "Chart"),
          y = "Price",
          color = "Legend") +
@@ -108,11 +117,11 @@ chart_stock <- function(indicators, ticker = "Stock") {
          y = "Volume") +
     theme_minimal()
 
-  # Plot ATR
+  # Plot Implied Volatility
   p5 <- ggplot(indicators, aes(x = Date)) +
-    geom_line(aes(y = ATR, color = "ATR")) +
-    labs(title = "Average True Range (ATR)",
-         y = "ATR",
+    geom_line(aes(y = Implied_Volatility, color = "Implied Volatility")) +
+    labs(title = "Implied Volatility",
+         y = "Volatility",
          color = "Legend") +
     theme_minimal()
 
@@ -185,13 +194,12 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
     Momentum_Bullish = momentum_bullish,
     Volatility_Low = volatility_low,
     BB_Squeeze = bb_squeeze,
-    Buy_Score = score
+    Buy_Score = score,
+    Stop_Loss = latest_data$Stop_Loss
   )
 }
 
-ticker <- "BLD"
-
-#end_date <- as.Date("2024-5-11")
+ticker <- "hesm"
 end_date <- Sys.Date()
 
 indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
