@@ -4,69 +4,93 @@ library(ggplot2)
 library(gridExtra)
 library(lubridate)
 
-screen_stock <- function(ticker, period = "all") {
-  # Get stock data
-  stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
-  
-  # Subset data based on the period
-  if (period != "all") {
-    end_date <- Sys.Date()
-    start_date <- switch(
-      period,
-      "10m" = end_date - months(10),
-      "1y" = end_date - years(1),
-      end_date - years(5) # default to 5 years if period not recognized
+screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
+  tryCatch({
+
+    stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
+    if (period != "all") {
+      end_date <- custom_date
+      start_date <- switch(
+        period,
+        "10m" = end_date - months(10),
+        "1y" = end_date - years(1),
+        end_date - years(5)
+      )
+
+      # Check if data is available for more than 1 year
+      if (index(stock_data)[1] > start_date) {
+        print(paste("Insufficient data for ticker", ticker))
+        return(NULL)
+      }
+
+      stock_data <- stock_data[paste(start_date, end_date, sep = "::")]
+    }
+
+    rsi <- RSI(Cl(stock_data), n = 14)
+    macd <- MACD(Cl(stock_data), nFast = 12, nSlow = 26, nSig = 9)
+    sma20 <- SMA(Cl(stock_data), n = 20)
+    sma50 <- SMA(Cl(stock_data), n = 50)
+    sma200 <- SMA(Cl(stock_data), n = 200)
+    ema20 <- EMA(Cl(stock_data), n = 20)
+    ema50 <- EMA(Cl(stock_data), n = 50)
+    ema200 <- EMA(Cl(stock_data), n = 200)
+
+    indicators <- data.frame(
+      Date = index(stock_data),
+      Close = as.numeric(Cl(stock_data)),
+      RSI = as.numeric(rsi),
+      MACD = as.numeric(macd[,1]),
+      Signal = as.numeric(macd[,2]),
+      SMA20 = as.numeric(sma20),
+      SMA50 = as.numeric(sma50),
+      SMA200 = as.numeric(sma200),
+      EMA20 = as.numeric(ema20),
+      EMA50 = as.numeric(ema50),
+      EMA200 = as.numeric(ema200)
     )
-    print(paste("Start Date:", start_date))
-    print(paste("End Date:", end_date))
-    stock_data <- stock_data[paste(start_date, end_date, sep = "::")]
-  }
-  
-  # Print the date range of the subset data for debugging
-  print(paste("Data Range:", index(stock_data)[1], "to", index(stock_data)[nrow(stock_data)]))
-  
-  # Calculate RSI
-  rsi <- RSI(Cl(stock_data), n = 14)
-  
-  # Calculate MACD
-  macd <- MACD(Cl(stock_data), nFast = 12, nSlow = 26, nSig = 9)
-  
-  # Calculate SMA
-  sma20 <- SMA(Cl(stock_data), n = 20)
-  sma50 <- SMA(Cl(stock_data), n = 50)
-  sma200 <- SMA(Cl(stock_data), n = 200)
-  
-  # Calculate EMA
-  ema20 <- EMA(Cl(stock_data), n = 20)
-  ema50 <- EMA(Cl(stock_data), n = 50)
-  ema200 <- EMA(Cl(stock_data), n = 200)
-  
-  # Combine indicators into a data frame
-  indicators <- data.frame(
-    Date = index(stock_data),
-    Close = as.numeric(Cl(stock_data)),
-    RSI = as.numeric(rsi),
-    MACD = as.numeric(macd[,1]),
-    Signal = as.numeric(macd[,2]),
-    SMA20 = as.numeric(sma20),
-    SMA50 = as.numeric(sma50),
-    SMA200 = as.numeric(sma200),
-    EMA20 = as.numeric(ema20),
-    EMA50 = as.numeric(ema50),
-    EMA200 = as.numeric(ema200)
-  )
-  return(indicators)
+    return(indicators)
+
+  }, error = function(e) {
+    print(paste("Error for ticker", ticker, ":", conditionMessage(e)))
+    return(NULL)
+  })
 }
 
-check_buy_signals <- function(indicators) {
+check_buy_signals <- function(indicators, lookback_days = 5) {
   latest_data <- tail(indicators, 1)
-  
-  macd_buy <- latest_data$MACD > latest_data$Signal
-  ema20_sma50_buy <- latest_data$EMA20 > latest_data$SMA50
-  ema20_sma20_buy <- latest_data$EMA20 > latest_data$SMA20
-  sma20_sma50_buy <- latest_data$SMA20 > latest_data$SMA50
-  rsi_buy <- latest_data$RSI < 30
-  
+  lookback_data <- tail(indicators, lookback_days + 1)
+
+  # Helper function to check if a crossover occurred within the last 'lookback_days'
+  crossover_occurred <- function(short, long) {
+    for (i in 1:lookback_days) {
+      if (lookback_data[i, short] <= lookback_data[i, long] && lookback_data[i + 1, short] > lookback_data[i + 1, long]) {
+        return(TRUE)
+      }
+    }
+    return(FALSE)
+  }
+
+  # MACD buy signal: crossover occurred within the lookback period
+  macd_buy <- crossover_occurred("MACD", "Signal")
+
+  # EMA20 > SMA50 crossover: occurred within the lookback period
+  ema20_sma50_buy <- crossover_occurred("EMA20", "SMA50")
+
+  # EMA20 > SMA20 crossover: occurred within the lookback period
+  ema20_sma20_buy <- crossover_occurred("EMA20", "SMA20")
+
+  # SMA20 > SMA50 crossover: occurred within the lookback period
+  sma20_sma50_buy <- crossover_occurred("SMA20", "SMA50")
+
+  # RSI buy signal: RSI dropped below 30 and then risen above it within the lookback period
+  rsi_buy <- FALSE
+  for (i in 1:lookback_days) {
+    if (lookback_data[i, "RSI"] < 30 && lookback_data[i + 1, "RSI"] >= 30) {
+      rsi_buy <- TRUE
+      break
+    }
+  }
+
   list(
     MACD_Buy = macd_buy,
     EMA20_SMA50_Buy = ema20_sma50_buy,
@@ -75,7 +99,6 @@ check_buy_signals <- function(indicators) {
     RSI_Buy = rsi_buy
   )
 }
-
 
 chart_stock <- function(indicators, ticker = "Stock") {
   # Plot closing prices with SMA and EMA
@@ -115,8 +138,10 @@ chart_stock <- function(indicators, ticker = "Stock") {
   grid.arrange(p1, p2, p3, ncol = 1)
 }
 
-ticker <- "AAN"
-indicators <- screen_stock(ticker, period = "1y")
+ticker <- "ajg"
+
+end_date <- as.Date("2023-12-20")
+indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
 chart_stock(indicators, ticker)
 buy_signals <- check_buy_signals(indicators)
 print(buy_signals)
