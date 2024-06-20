@@ -7,12 +7,11 @@ library(readr)
 library(progress)
 
 # Function to screen stock and calculate indicators
-screen_stock <- function(ticker, period = "all") {
+screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
   tryCatch({
-    
     stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
     if (period != "all") {
-      end_date <- Sys.Date()
+      end_date <- custom_date
       start_date <- switch(
         period,
         "10m" = end_date - months(10),
@@ -59,7 +58,52 @@ screen_stock <- function(ticker, period = "all") {
   })
 }
 
-check_buy_signals <- function(tickers, period = "all", output_file = "buy_signals.csv", lookback_period = 5) {
+# Improved check_buy_signals function
+check_buy_signals <- function(indicators, lookback_days = 5) {
+  latest_data <- tail(indicators, 1)
+  lookback_data <- tail(indicators, lookback_days + 1)
+
+  # Helper function to check if a crossover occurred within the last 'lookback_days'
+  crossover_occurred <- function(short, long) {
+    for (i in 1:lookback_days) {
+      if (lookback_data[i, short] <= lookback_data[i, long] && lookback_data[i + 1, short] > lookback_data[i + 1, long]) {
+        return(TRUE)
+      }
+    }
+    return(FALSE)
+  }
+
+  # MACD buy signal: crossover occurred within the lookback period
+  macd_buy <- crossover_occurred("MACD", "Signal")
+
+  # EMA20 > SMA50 crossover: occurred within the lookback period
+  ema20_sma50_buy <- crossover_occurred("EMA20", "SMA50")
+
+  # EMA20 > SMA20 crossover: occurred within the lookback period
+  ema20_sma20_buy <- crossover_occurred("EMA20", "SMA20")
+
+  # SMA20 > SMA50 crossover: occurred within the lookback period
+  sma20_sma50_buy <- crossover_occurred("SMA20", "SMA50")
+
+  # RSI buy signal: RSI dropped below 30 and then risen above it within the lookback period
+  rsi_buy <- FALSE
+  for (i in 1:lookback_days) {
+    if (lookback_data[i, "RSI"] < 30 && lookback_data[i + 1, "RSI"] >= 30) {
+      rsi_buy <- TRUE
+      break
+    }
+  }
+
+  list(
+    MACD_Buy = macd_buy,
+    EMA20_SMA50_Buy = ema20_sma50_buy,
+    EMA20_SMA20_Buy = ema20_sma20_buy,
+    SMA20_SMA50_Buy = sma20_sma50_buy,
+    RSI_Buy = rsi_buy
+  )
+}
+
+process_tickers <- function(tickers, period = "all", output_file = "buy_signals.csv", custom_date = Sys.Date(), lookback_period = 5) {
   results <- data.frame(
     Ticker = character(),
     Date = as.Date(character()),
@@ -79,7 +123,7 @@ check_buy_signals <- function(tickers, period = "all", output_file = "buy_signal
   for (ticker in tickers) {
     pb$tick()  # Update progress bar
 
-    indicators <- screen_stock(ticker, period)
+    indicators <- screen_stock(ticker, custom_date, period)
     if (is.null(indicators)) {
       print(paste("Skipping ticker", ticker))
       next  # Skip to next iteration if data is insufficient
@@ -91,31 +135,17 @@ check_buy_signals <- function(tickers, period = "all", output_file = "buy_signal
       next
     }
 
-    # Check for MACD crossover within lookback period
-    macd_diff <- tail(indicators$MACD, lookback_period) - tail(indicators$Signal, lookback_period)
-    macd_buy <- any(macd_diff > 0 & lag(macd_diff, default = NA) <= 0)
-
-    # Check for EMA/SMA crosses within lookback period
-    ema20_sma50_buy <- any(tail(indicators$EMA20, lookback_period) > tail(indicators$SMA50, lookback_period) &
-                           lag(tail(indicators$EMA20, lookback_period)) <= lag(tail(indicators$SMA50, lookback_period), default = NA))
-    ema20_sma20_buy <- any(tail(indicators$EMA20, lookback_period) > tail(indicators$SMA20, lookback_period) &
-                           lag(tail(indicators$EMA20, lookback_period)) <= lag(tail(indicators$SMA20, lookback_period), default = NA))
-    sma20_sma50_buy <- any(tail(indicators$SMA20, lookback_period) > tail(indicators$SMA50, lookback_period) &
-                           lag(tail(indicators$SMA20, lookback_period)) <= lag(tail(indicators$SMA50, lookback_period), default = NA))
-
-    # Check for RSI buy signal
-    rsi_buy <- tail(indicators$RSI, 1) < 30
-
+    signals <- check_buy_signals(indicators, lookback_period)
     latest_data <- tail(indicators, 1)
 
     signal_data <- data.frame(
       Ticker = ticker,
       Date = latest_data$Date,
-      MACD_Buy = macd_buy,
-      EMA20_SMA50_Buy = ema20_sma50_buy,
-      EMA20_SMA20_Buy = ema20_sma20_buy,
-      SMA20_SMA50_Buy = sma20_sma50_buy,
-      RSI_Buy = rsi_buy
+      MACD_Buy = signals$MACD_Buy,
+      EMA20_SMA50_Buy = signals$EMA20_SMA50_Buy,
+      EMA20_SMA20_Buy = signals$EMA20_SMA20_Buy,
+      SMA20_SMA50_Buy = signals$SMA20_SMA50_Buy,
+      RSI_Buy = signals$RSI_Buy
     )
 
     results <- rbind(results, signal_data)
@@ -152,10 +182,11 @@ load_buy_tickers <- function(file_path) {
 }
 
 current_date <- format(Sys.Date(), "%Y-%m-%d")
-output_file <- paste0("buy_signals_", current_date, ".csv")
+output_file <- paste0("buy_2signals_", current_date, ".csv")
 
-tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
-#tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+# tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
+tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
-buy_signals <- check_buy_signals(tickers, period = "1y", output_file = output_file)
+end_date <- as.Date("2024-5-11")
+buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date)
 print(buy_signals)
