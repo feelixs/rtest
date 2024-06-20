@@ -138,7 +138,7 @@ chart_stock <- function(indicators, ticker = "Stock") {
   grid.arrange(p1, p2, p3, ncol = 1)
 }
 
-ticker <- "bdx"
+ticker <- "abr"
 
 #end_date <- as.Date("2024-5-11")
 end_date <- Sys.Date()
