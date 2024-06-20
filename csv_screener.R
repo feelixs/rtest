@@ -66,7 +66,10 @@ check_buy_signals <- function(indicators, lookback_days = 5) {
   # Helper function to check if a crossover occurred within the last 'lookback_days'
   crossover_occurred <- function(short, long) {
     for (i in 1:lookback_days) {
-      if (lookback_data[i, short] <= lookback_data[i, long] && lookback_data[i + 1, short] > lookback_data[i + 1, long]) {
+      if (!is.na(lookback_data[i, short]) && !is.na(lookback_data[i, long]) &&
+          !is.na(lookback_data[i + 1, short]) && !is.na(lookback_data[i + 1, long]) &&
+          lookback_data[i, short] <= lookback_data[i, long] &&
+          lookback_data[i + 1, short] > lookback_data[i + 1, long]) {
         return(TRUE)
       }
     }
@@ -88,7 +91,8 @@ check_buy_signals <- function(indicators, lookback_days = 5) {
   # RSI buy signal: RSI dropped below 30 and then risen above it within the lookback period
   rsi_buy <- FALSE
   for (i in 1:lookback_days) {
-    if (lookback_data[i, "RSI"] < 30 && lookback_data[i + 1, "RSI"] >= 30) {
+    if (!is.na(lookback_data[i, "RSI"]) && !is.na(lookback_data[i + 1, "RSI"]) &&
+        lookback_data[i, "RSI"] < 30 && lookback_data[i + 1, "RSI"] >= 30) {
       rsi_buy <- TRUE
       break
     }
@@ -102,6 +106,7 @@ check_buy_signals <- function(indicators, lookback_days = 5) {
     RSI_Buy = rsi_buy
   )
 }
+
 
 process_tickers <- function(tickers, period = "all", output_file = "buy_signals.csv", custom_date = Sys.Date(), lookback_period = 5) {
   results <- data.frame(
@@ -184,9 +189,11 @@ load_buy_tickers <- function(file_path) {
 current_date <- format(Sys.Date(), "%Y-%m-%d")
 output_file <- paste0("buy_2signals_", current_date, ".csv")
 
-# tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
-tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
+# tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
-end_date <- as.Date("2024-5-11")
+#end_date <- as.Date("2024-5-11")
+
+end_date <- Sys.Date()  # today
 buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date)
 print(buy_signals)
