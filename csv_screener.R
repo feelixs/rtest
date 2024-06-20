@@ -157,7 +157,6 @@ process_tickers <- function(tickers, period = "all", output_file = "buy_signals.
   )
 
   for (ticker in tickers) {
-    print(ticker)
     pb$tick()  # Update progress bar
 
     indicators <- screen_stock(ticker, custom_date, period)
@@ -188,13 +187,12 @@ process_tickers <- function(tickers, period = "all", output_file = "buy_signals.
       Trend_Buy = signals$Trend_Buy,
       Total_Score = signals$Total_Score
     )
-    print(signal_data)
 
     results <- rbind(results, signal_data)
   }
 
   # Add a column that counts the number of TRUE values for each row
-  results$Total_True <- rowSums(results[, 3:10])
+  results$Total_True <- rowSums(results[,3:10])
 
   # Sort the results based on the Total_Score (descending)
   results <- results[order(-results$Total_Score), ]
