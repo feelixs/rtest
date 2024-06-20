@@ -143,7 +143,7 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
   )
 }
 
-process_tickers <- function(tickers, period = "all", output_file = "buy_signals.csv", custom_date = Sys.Date(), lookback_period = 5) {
+process_tickers <- function(tickers, period = "all", output_file = "buy_signals.csv", custom_date = Sys.Date(), lookback_period = 3) {
   results <- data.frame(
     Ticker = character(),
     Date = as.Date(character()),
@@ -223,11 +223,13 @@ load_buy_tickers <- function(file_path) {
 }
 
 current_date <- format(Sys.Date(), "%Y-%m-%d")
-output_file <- paste0("output/buy_signals_", current_date, ".csv")
+
+num_lookback_days <- 3
+output_file <- paste0(current_date, "_time", num_lookback_days, ".csv")
 
 tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
 # tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
 # end_date <- as.Date("2024-5-11")
 end_date <- Sys.Date()
-buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date)
+buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date, lookback_period = num_lookback_days)
