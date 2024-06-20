@@ -102,6 +102,7 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
   # Add Bollinger Bands
   bb <- BBands(indicators$Close, n = 20, sd = 2)
   bb_buy <- latest_data$Close < bb[,"dn"]  # Price below lower Bollinger Band
+
   # Volume confirmation
   volume_buy <- !is.na(latest_data$Volume) &&
                 !is.na(mean(tail(indicators$Volume, 20), na.rm = TRUE)) &&
@@ -223,8 +224,6 @@ output_file <- paste0("buy_signals_", current_date, ".csv")
 
 #tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
 tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
-
-#end_date <- as.Date("2024-5-11")
 
 end_date <- Sys.Date()  # today
 buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date)
