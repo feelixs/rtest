@@ -99,7 +99,7 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
   }
 
   # Volume confirmation
-  volume_confirmed <- latest_data$Volume > (mean(lookback_data$Volume) * volume_increase)
+  volume_confirmed <- latest_data$Volume > (mean(lookback_data$Volume[-(lookback_days + 1)]) * volume_increase)
 
   # Trend confirmation
   trend_bullish <- latest_data$Close > latest_data$SMA200
@@ -116,16 +116,16 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
 
   # Scoring system
   score <- sum(c(
-    macd_buy * 2,
-    ema20_sma50_buy * 1.5,
-    ema20_sma20_buy * 1,
-    sma20_sma50_buy * 1,
-    rsi_buy * 1,
-    volume_confirmed * 1,
-    trend_bullish * 2,
-    momentum_bullish * 1,
-    volatility_low * 0.5,
-    bb_squeeze * 1
+    macd_buy * 3,          # Increase weight for MACD crossover
+    ema20_sma50_buy * 2,   # Increase weight for EMA20/SMA50 crossover
+    ema20_sma20_buy * 1,   # Keep weight for EMA20/SMA20 crossover
+    sma20_sma50_buy * 1,   # Keep weight for SMA20/SMA50 crossover
+    rsi_buy * 1.5,         # Increase weight for RSI crossing threshold
+    volume_confirmed * 2,  # Increase weight for volume confirmation
+    trend_bullish * 3,     # Increase weight for bullish trend
+    momentum_bullish * 1.5, # Increase weight for bullish momentum
+    volatility_low * 0.5,  # Keep weight for low volatility
+    bb_squeeze * 1         # Keep weight for Bollinger Bands squeeze
   ))
 
   list(
@@ -170,8 +170,8 @@ process_tickers <- function(tickers, period = "all", output_file = "buy_signals.
     pb$tick()
 
     indicators <- screen_stock(ticker, custom_date, period)
-    if (is.null(indicators) || nrow(indicators) < lookback_period) {
-      print(paste("Skipping ticker", ticker))
+    if (is.null(indicators) || nrow(indicators) <= lookback_period) {
+      print(paste("Skipping ticker", ticker, "due to insufficient data"))
       next
     }
 
@@ -224,8 +224,8 @@ load_buy_tickers <- function(file_path) {
 
 current_date <- format(Sys.Date(), "%Y-%m-%d")
 
-num_lookback_days <- 3
-output_file <- paste0(current_date, "_time", num_lookback_days, ".csv")
+num_lookback_days <- 4
+output_file <- paste0("output/", current_date, "/_lookback-", num_lookback_days, "d.csv")
 
 tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
 # tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
@@ -233,3 +233,4 @@ tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv"
 # end_date <- as.Date("2024-5-11")
 end_date <- Sys.Date()
 buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date, lookback_period = num_lookback_days)
+
