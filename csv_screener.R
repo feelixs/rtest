@@ -40,7 +40,6 @@ screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
     indicators <- data.frame(
       Date = index(stock_data),
       Close = as.numeric(Cl(stock_data)),
-      Volume = as.numeric(Vo(stock_data)),
       RSI = as.numeric(rsi),
       MACD = as.numeric(macd[,1]),
       Signal = as.numeric(macd[,2]),
@@ -60,7 +59,7 @@ screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
 }
 
 # Improved check_buy_signals function
-check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30, volume_factor = 1.5) {
+check_buy_signals <- function(indicators, lookback_days = 5) {
   latest_data <- tail(indicators, 1)
   lookback_data <- tail(indicators, lookback_days + 1)
 
@@ -89,52 +88,25 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
   # SMA20 > SMA50 crossover: occurred within the lookback period
   sma20_sma50_buy <- crossover_occurred("SMA20", "SMA50")
 
-  # RSI buy signal: RSI dropped below threshold and then risen above it within the lookback period
+  # RSI buy signal: RSI dropped below 30 and then risen above it within the lookback period
   rsi_buy <- FALSE
   for (i in 1:lookback_days) {
     if (!is.na(lookback_data[i, "RSI"]) && !is.na(lookback_data[i + 1, "RSI"]) &&
-        lookback_data[i, "RSI"] < rsi_threshold && lookback_data[i + 1, "RSI"] >= rsi_threshold) {
+        lookback_data[i, "RSI"] < 30 && lookback_data[i + 1, "RSI"] >= 30) {
       rsi_buy <- TRUE
       break
     }
   }
-
-  # Add Bollinger Bands
-  bb <- BBands(indicators$Close, n = 20, sd = 2)
-  bb_buy <- latest_data$Close < bb[,"dn"]  # Price below lower Bollinger Band
-
-  # Volume confirmation
-  volume_buy <- !is.na(latest_data$Volume) &&
-                !is.na(mean(tail(indicators$Volume, 20), na.rm = TRUE)) &&
-                latest_data$Volume > (mean(tail(indicators$Volume, 20), na.rm = TRUE) * volume_factor)
-
-  # Trend confirmation
-  trend_buy <- latest_data$Close > latest_data$SMA200
-
-  # Weighted signal
-  total_score <- (
-    (macd_buy * 2) +
-    (ema20_sma50_buy * 1.5) +
-    (ema20_sma20_buy * 1) +
-    (sma20_sma50_buy * 1) +
-    (rsi_buy * 1.5) +
-    (bb_buy * 1) +
-    (volume_buy * 1) +
-    (trend_buy * 2)
-  )
 
   list(
     MACD_Buy = macd_buy,
     EMA20_SMA50_Buy = ema20_sma50_buy,
     EMA20_SMA20_Buy = ema20_sma20_buy,
     SMA20_SMA50_Buy = sma20_sma50_buy,
-    RSI_Buy = rsi_buy,
-    BB_Buy = bb_buy,
-    Volume_Buy = volume_buy,
-    Trend_Buy = trend_buy,
-    Total_Score = total_score
+    RSI_Buy = rsi_buy
   )
 }
+
 
 process_tickers <- function(tickers, period = "all", output_file = "buy_signals.csv", custom_date = Sys.Date(), lookback_period = 5) {
   results <- data.frame(
@@ -145,10 +117,6 @@ process_tickers <- function(tickers, period = "all", output_file = "buy_signals.
     EMA20_SMA20_Buy = logical(),
     SMA20_SMA50_Buy = logical(),
     RSI_Buy = logical(),
-    BB_Buy = logical(),
-    Volume_Buy = logical(),
-    Trend_Buy = logical(),
-    Total_Score = numeric(),
     stringsAsFactors = FALSE
   )
 
@@ -182,21 +150,20 @@ process_tickers <- function(tickers, period = "all", output_file = "buy_signals.
       EMA20_SMA50_Buy = signals$EMA20_SMA50_Buy,
       EMA20_SMA20_Buy = signals$EMA20_SMA20_Buy,
       SMA20_SMA50_Buy = signals$SMA20_SMA50_Buy,
-      RSI_Buy = signals$RSI_Buy,
-      BB_Buy = signals$BB_Buy,
-      Volume_Buy = signals$Volume_Buy,
-      Trend_Buy = signals$Trend_Buy,
-      Total_Score = signals$Total_Score
+      RSI_Buy = signals$RSI_Buy
     )
 
     results <- rbind(results, signal_data)
   }
 
   # Add a column that counts the number of TRUE values for each row
-  results$Total_True <- rowSums(results[,3:10])
+  results$Total_True <- rowSums(results[,3:7])
 
-  # Sort the results based on the Total_Score (descending)
-  results <- results[order(-results$Total_Score), ]
+  # Sort the results based on the number of TRUE values (descending)
+  results <- results[order(-results$Total_True), ]
+
+  # Remove the Total_True column before writing to CSV
+  results <- results[, -ncol(results)]
 
   # Write to CSV
   if (file.exists(output_file)) {
@@ -220,10 +187,12 @@ load_buy_tickers <- function(file_path) {
 }
 
 current_date <- format(Sys.Date(), "%Y-%m-%d")
-output_file <- paste0("buy_signals_", current_date, ".csv")
+output_file <- paste0("buy_2signals_", current_date, ".csv")
 
-#tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
-tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
+# tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+
+#end_date <- as.Date("2024-5-11")
 
 end_date <- Sys.Date()  # today
 buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date)
