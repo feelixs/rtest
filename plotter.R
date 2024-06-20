@@ -138,9 +138,11 @@ chart_stock <- function(indicators, ticker = "Stock") {
   grid.arrange(p1, p2, p3, ncol = 1)
 }
 
-ticker <- "aan"
+ticker <- "bdx"
 
-end_date <- as.Date("2024-5-11")
+#end_date <- as.Date("2024-5-11")
+end_date <- Sys.Date()
+
 indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
 chart_stock(indicators, ticker)
 buy_signals <- check_buy_signals(indicators)
