@@ -142,6 +142,7 @@ check_buy_signals <- function(tickers, period = "all", output_file = "buy_signal
 
 load_tickers <- function(file_path) {
   tickers <- read_csv(file_path)  # Assuming the first column contains tickers
+  tickers$Symbol <- gsub("\\^", "-", tickers$Symbol)  # Replace ^ with - for Yahoo Finance
   return(tickers$Symbol)  # Return vector of tickers
 }
 
