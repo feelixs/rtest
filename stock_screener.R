@@ -225,8 +225,8 @@ load_buy_tickers <- function(file_path) {
 current_date <- format(Sys.Date(), "%Y-%m-%d")
 output_file <- paste0("output/buy_signals_", current_date, ".csv")
 
-# tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
-tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
+# tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
 # end_date <- as.Date("2024-5-11")
 end_date <- Sys.Date()
