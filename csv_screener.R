@@ -91,8 +91,9 @@ check_buy_signals <- function(tickers, period = "all", output_file = "buy_signal
       next
     }
 
-    # Check for MACD buy signal
-    macd_buy <- tail(indicators$MACD, 1) > tail(indicators$Signal, 1)
+    # Check for MACD crossover within lookback period
+    macd_diff <- tail(indicators$MACD, lookback_period) - tail(indicators$Signal, lookback_period)
+    macd_buy <- any(macd_diff > 0 & lag(macd_diff, default = NA) <= 0)
 
     # Check for EMA/SMA crosses within lookback period
     ema20_sma50_buy <- any(tail(indicators$EMA20, lookback_period) > tail(indicators$SMA50, lookback_period) &
@@ -152,8 +153,8 @@ load_buy_tickers <- function(file_path) {
 current_date <- format(Sys.Date(), "%Y-%m-%d")
 output_file <- paste0("buy_signals_", current_date, ".csv")
 
-#tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
-tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
+#tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
 buy_signals <- check_buy_signals(tickers, period = "1y", output_file = output_file)
 print(buy_signals)
