@@ -196,4 +196,5 @@ tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv"
 
 end_date <- Sys.Date()  # today
 buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date)
-print(buy_signals)
+# print(buy_signals)
+
