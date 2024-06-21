@@ -225,11 +225,18 @@ load_buy_tickers <- function(file_path) {
 current_date <- format(Sys.Date(), "%Y-%m-%d")
 
 num_lookback_days <- 4
-output_file <- paste0("screens/", current_date, "/screen_", current_date, "_lookback-", num_lookback_days, "d.csv")
+
+output_directory <- paste0("screens/", current_date)
+output_file <- paste0(output_directory, "/screen_", current_date, "_lookback-", num_lookback_days, "d.csv")
 
 tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
-# tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
+#tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
 # end_date <- as.Date("2024-5-11")
 end_date <- Sys.Date()
+
+if (!dir.exists(output_directory)) {
+  dir.create(output_directory, recursive = TRUE)
+}
+
 buy_signals <- process_tickers(tickers, period = "1y", output_file = output_file, custom_date = end_date, lookback_period = num_lookback_days)
