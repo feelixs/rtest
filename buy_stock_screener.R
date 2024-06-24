@@ -232,8 +232,8 @@ output_file <- paste0(output_directory, "/screen_", current_date, "_lookback-", 
 tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
 #tickers <- load_buy_tickers("/Users/michaelfelix/Documents/GitHub/rtest/buy_signals_2024-06-19.csv")
 
-end_date <- as.Date("2024-05-22")
-# end_date <- Sys.Date()
+#end_date <- as.Date("2024-05-22")
+end_date <- Sys.Date()
 
 if (!dir.exists(output_directory)) {
   dir.create(output_directory, recursive = TRUE)
