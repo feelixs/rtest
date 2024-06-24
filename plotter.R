@@ -199,7 +199,7 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
   )
 }
 
-ticker <- "ABCB"
+ticker <- "blk"
 end_date <- Sys.Date()
 
 indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
