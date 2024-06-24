@@ -211,10 +211,22 @@ process_tickers <- function(tickers, period = "all", output_file = "sell_signals
 }
 
 load_tickers <- function(file_path) {
-  tickers <- read_csv(file_path)
-  tickers$Symbol <- gsub("\\^", "-", tickers$Symbol)
-  return(tickers$Symbol)
+  tryCatch({
+    tickers <- read_csv(file_path)
+
+    # Filter out rows where the "SOLD FOR" column is not empty
+    tickers <- tickers[is.na(tickers$`SOLD FOR`) | tickers$`SOLD FOR` == "", ]
+
+    # Replace any "^" characters in the Symbol column with "-"
+    tickers$Symbol <- gsub("\\^", "-", tickers$Symbol)
+
+    return(tickers$Symbol)
+  }, error = function(e) {
+    print(paste("Error loading tickers:", conditionMessage(e)))
+    return(character(0))
+  })
 }
+
 
 # Main execution
 current_date <- format(Sys.Date(), "%Y-%m-%d")
@@ -223,10 +235,8 @@ num_lookback_days <- 4
 output_directory <- paste0("sell_screens/", current_date)
 output_file <- paste0(output_directory, "/screen_", current_date, "_lookback-", num_lookback_days, "d.csv")
 
-#tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/tickers.csv")
 tickers <- load_tickers("/Users/michaelfelix/Documents/GitHub/rtest/holdings/06-24-2024/2024 - Sheet1.csv")
 
-# end_date <- as.Date("2024-05-22")
 end_date <- Sys.Date()
 
 if (!dir.exists(output_directory)) {
