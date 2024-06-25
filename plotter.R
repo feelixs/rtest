@@ -4,6 +4,9 @@ library(ggplot2)
 library(gridExtra)
 library(lubridate)
 
+ticker <- "BLK"
+end_date <- Sys.Date()
+
 screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
   tryCatch({
     stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
@@ -276,8 +279,8 @@ calculate_sell_scores <- function(indicators) {
   return(scores)
 }
 
-ticker <- "R"
-end_date <- Sys.Date()
+#ticker <- "igd"
+#end_date <- Sys.Date()
 
 indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
 chart_stock(indicators, ticker)
