@@ -73,7 +73,47 @@ screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
   })
 }
 
+check_buy_signals_daily <- function(day_data, prev_data) {
+  macd_buy <- day_data$MACD > day_data$Signal && prev_data$MACD <= prev_data$Signal
+  ema20_sma50_buy <- day_data$EMA20 > day_data$SMA50 && prev_data$EMA20 <= prev_data$SMA50
+  ema20_sma20_buy <- day_data$EMA20 > day_data$SMA20 && prev_data$EMA20 <= prev_data$SMA20
+  sma20_sma50_buy <- day_data$SMA20 > day_data$SMA50 && prev_data$SMA20 <= prev_data$SMA50
+  rsi_buy <- day_data$RSI >= 30 && prev_data$RSI < 30
+  volume_confirmed <- day_data$Volume > prev_data$Volume * 1.5
+  trend_bullish <- day_data$Close > day_data$SMA200
+  momentum_bullish <- day_data$Close > prev_data$Close
+  volatility_low <- day_data$ATR < prev_data$ATR
+  bb_squeeze <- (day_data$BB_Upper - day_data$BB_Lower) < (prev_data$BB_Upper - prev_data$BB_Lower)
+
+  score <- sum(c(
+    macd_buy * 2,
+    ema20_sma50_buy * 1.5,
+    ema20_sma20_buy * 1,
+    sma20_sma50_buy * 1,
+    rsi_buy * 1,
+    volume_confirmed * 1,
+    trend_bullish * 2,
+    momentum_bullish * 1,
+    volatility_low * 0.5,
+    bb_squeeze * 1
+  ))
+
+  return(score)
+}
+
+calculate_buy_scores <- function(indicators) {
+  scores <- numeric(nrow(indicators))
+  for (i in 2:nrow(indicators)) {
+    scores[i] <- check_buy_signals_daily(indicators[i,], indicators[i-1,])
+  }
+  return(scores)
+}
+
 chart_stock <- function(indicators, ticker = "Stock") {
+  # Calculate buy scores
+  indicators$Buy_Score <- calculate_buy_scores(indicators)
+  indicators$Sell_Score <- calculate_sell_scores(indicators)
+
   # Plot closing prices with SMA, EMA, Bollinger Bands, and Stop Loss
   p1 <- ggplot(indicators, aes(x = Date)) +
     geom_line(aes(y = Close, color = "Close")) +
@@ -125,13 +165,14 @@ chart_stock <- function(indicators, ticker = "Stock") {
          color = "Legend") +
     theme_minimal()
 
-  # Plot ROC
+  # Plot Buy Score
   p6 <- ggplot(indicators, aes(x = Date)) +
-    geom_line(aes(y = ROC, color = "ROC")) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-    labs(title = "Rate of Change (ROC)",
-         y = "ROC",
+    geom_line(aes(y = Buy_Score, color = "Buy Score")) +
+    geom_line(aes(y = Sell_Score, color = "Sell Score")) +
+    labs(title = "Buy and Sell Scores",
+         y = "Score",
          color = "Legend") +
+    scale_color_manual(values = c("Buy Score" = "green", "Sell Score" = "red")) +
     theme_minimal()
 
   # Combine plots
@@ -199,10 +240,48 @@ check_buy_signals <- function(indicators, lookback_days = 5, rsi_threshold = 30,
   )
 }
 
+calculate_sell_score_daily <- function(day_data, prev_data) {
+  macd_sell <- day_data$MACD < day_data$Signal && prev_data$MACD >= prev_data$Signal
+  ema20_sma50_sell <- day_data$EMA20 < day_data$SMA50 && prev_data$EMA20 >= prev_data$SMA50
+  ema20_sma20_sell <- day_data$EMA20 < day_data$SMA20 && prev_data$EMA20 >= prev_data$SMA20
+  sma20_sma50_sell <- day_data$SMA20 < day_data$SMA50 && prev_data$SMA20 >= prev_data$SMA50
+  rsi_sell <- day_data$RSI <= 70 && prev_data$RSI > 70
+  volume_confirmed <- day_data$Volume > prev_data$Volume * 1.5
+  trend_bearish <- day_data$Close < day_data$SMA200
+  momentum_bearish <- day_data$Close < prev_data$Close
+  volatility_high <- day_data$ATR > prev_data$ATR
+  bb_expansion <- (day_data$BB_Upper - day_data$BB_Lower) > (prev_data$BB_Upper - prev_data$BB_Lower)
+
+  score <- sum(c(
+    macd_sell * 3,
+    ema20_sma50_sell * 2,
+    ema20_sma20_sell * 1,
+    sma20_sma50_sell * 1,
+    rsi_sell * 1.5,
+    volume_confirmed * 2,
+    trend_bearish * 3,
+    momentum_bearish * 1.5,
+    volatility_high * 0.5,
+    bb_expansion * 1
+  ))
+
+  return(score)
+}
+
+calculate_sell_scores <- function(indicators) {
+  scores <- numeric(nrow(indicators))
+  for (i in 2:nrow(indicators)) {
+    scores[i] <- calculate_sell_score_daily(indicators[i,], indicators[i-1,])
+  }
+  return(scores)
+}
+
 ticker <- "blk"
 end_date <- Sys.Date()
 
 indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
 chart_stock(indicators, ticker)
 buy_signals <- check_buy_signals(indicators)
+sell_signals <- check_sell_signals(indicators)
 print(buy_signals)
+print(sell_signals)
