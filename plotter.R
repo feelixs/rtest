@@ -172,7 +172,7 @@ chart_stock <- function(indicators, ticker = "Stock") {
     labs(title = "Buy and Sell Scores",
          y = "Score",
          color = "Legend") +
-    scale_color_manual(values = c("Buy Score" = "green", "Sell Score" = "red")) +
+    scale_color_manual(values = c("Buy Score" = "purple", "Sell Score" = "red")) +
     theme_minimal()
 
   # Combine plots
@@ -276,7 +276,7 @@ calculate_sell_scores <- function(indicators) {
   return(scores)
 }
 
-ticker <- "blk"
+ticker <- "R"
 end_date <- Sys.Date()
 
 indicators <- screen_stock(ticker, period = "1y", custom_date = end_date)
