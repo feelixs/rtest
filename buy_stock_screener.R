@@ -7,7 +7,7 @@ library(readr)
 library(progress)
 
 # Function to screen stock and calculate indicators
-screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
+screen_stock <- function(ticker, custom_date = Sys.Date(), period = "1y") {
   tryCatch({
     stock_data <- getSymbols(ticker, src = "yahoo", auto.assign = FALSE)
     if (period != "all") {
