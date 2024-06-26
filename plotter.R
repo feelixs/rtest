@@ -4,7 +4,7 @@ library(ggplot2)
 library(gridExtra)
 library(lubridate)
 
-ticker <- "EW"
+ticker <- "ABBV"
 end_date <- Sys.Date()
 
 screen_stock <- function(ticker, custom_date = Sys.Date(), period = "all") {
